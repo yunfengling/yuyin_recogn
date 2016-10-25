@@ -225,13 +225,8 @@ class AudioThread(threading.Thread):
 
     def run(self):
 
-        saveout = sys.stdout
-        fsock = open('out.log', 'w')
-        sys.stdout = fsock
 
-        fsockerr = open('error.log', 'w')
-        sys.stderr = fsockerr
-
+        '''
         # create dgram udp socket
         try:
             senderSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -250,6 +245,7 @@ class AudioThread(threading.Thread):
         msg2Send = bytearray(buf2Send + strTest)
         #print msg2Send
         #############################################
+        '''
         token = get_token()
 
         wx.PostEvent(self.mypanel, ItemActivated(data=1009, thread=threading.current_thread()))
@@ -290,6 +286,7 @@ class AudioThread(threading.Thread):
             buf2Send = struct.pack('<i', 1002)
             msg2Send = bytearray(buf2Send + strResults)
 
+            '''
             try :
                 #Set the whole string
                 senderSocket.sendto(msg2Send,  (MCAST_ADDR, MCAST_PORT))
@@ -306,7 +303,7 @@ class AudioThread(threading.Thread):
             wx.PostEvent(self.mypanel,
                          ItemActivated(data ='Results= '.encode('gbk') + strRecognizedWords +'  Sent to:' + MCAST_ADDR + ':' + str(MCAST_PORT) + strRuntime, #random.randint(*self.range), + MCAST_ADDR+ MCAST_PORT
                                        thread=threading.current_thread()))
-
+            '''
             count += 1
             it += 1
 
@@ -326,25 +323,78 @@ class WorkerThread(threading.Thread):
                                        thread=threading.current_thread()))
             count += 1
  
- 
+
+
+class CommSocket():
+
+    def __init__(self):
+        self._socketSender = None
+        #self.InitSocket()
+        return
+
+    def InitSocket(self):
+        # create dgram udp socket
+        try:
+            senderSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            senderSocket.bind((ANY, SENDERPORT)) #绑定发送端口到SENDERPORT，即此例的发送端口为1501
+
+            ttl_bin = struct.pack('@i', 1)
+            senderSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl_bin) #设置使用多播发送
+        except socket.error:
+            print 'Failed to create socket'
+            sys.exit(3)
+            return 3
+
+        strTest = u"发送指令  ..............................".encode(encoding='gbk')
+        #print strTest.decode(encoding='gbk')
+        buf2Send = struct.pack('<i', 1002)
+        msg2Send = bytearray(buf2Send + strTest)
+        #print msg2Send
+        #############################################
+        #token = get_token()
+        self._socketSender = senderSocket
+
+        #wx.PostEvent(self.mypanel, ItemActivated(data=1009, thread=threading.current_thread()))
+        return 0
+
+    def GetSocket(self):
+        return self._socketSender
+
+
+
 class MyPanel(wx.Panel):
  
     def __init__(self, parent):
         wx.Panel.__init__(self, parent, -1)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
  
-        #worker_thread1 = WorkerThread(mypanel=self, range_=(1, 100))
-        #worker_thread1.daemon = True
-        worker_thread2 = AudioThread(mypanel=self, range_=(1000, 2000))
-        worker_thread2.daemon = True
-        #worker_thread1.start()
-        worker_thread2.start()
+
  
         self.mystatic_text = wx.StaticText(self, -1, label="In Main Thread. Waiting for ready......")
         self.sizer.Add(self.mystatic_text)
         self.Bind(EVT_ITEM_ACTIVATED, self.on_item_activated)
  
         self.SetSizerAndFit(self.sizer)
+
+        ################
+        commSocket = CommSocket()
+        status = commSocket.InitSocket()
+        if(0 == status):
+            self.update_text_ui("\n Now, ready to use.") # 已UDP连接完成，通讯正常使用。
+        else:
+            self.update_text_ui("\n Error:  Socket error !!! .")
+        self._commSocket = commSocket
+
+        ###################################################################
+        #worker_thread1 = WorkerThread(mypanel=self, range_=(1, 100))
+        #worker_thread1.daemon = True
+        worker_thread2 = AudioThread(mypanel=self, range_=(1000, 2000))
+        worker_thread2.daemon = True
+        #worker_thread1.start()
+        worker_thread2.start()
+
+        print "Init is done..."
         return
 
     def update_text_ui(self, strMsg):
@@ -363,7 +413,7 @@ class MyPanel(wx.Panel):
         else:
             strEvent = "\n->Event From %s: %s" % (evt.thread, evt.data)
         self.update_text_ui(strEvent)
-
+        return
  
  
 if __name__ == "__main__":
