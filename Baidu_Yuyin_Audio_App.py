@@ -119,6 +119,7 @@ def ParseStringFromBaidu(buffer):
         isSuccess = False
     return isSuccess, strRecognizedWords
 
+
 def SendData2Receiver(senderSocket, strRecognizedWords):
     buf2Send = struct.pack('<i', 1002)
     strResults = r"发送指令%s ......................."%(strRecognizedWords)
@@ -133,12 +134,94 @@ def SendData2Receiver(senderSocket, strRecognizedWords):
     return
 
 
+##################################################
+class BaiduOnlineRecognitionThread(threading.Thread):
+
+    def __init__(self, mypanel, range_):
+        self.mypanel = mypanel
+        self.range = range_
+        threading.Thread.__init__(self)
+        return
+
+    def run(self):
+        saveout = sys.stdout
+        fsock = open('out.log', 'w')
+        sys.stdout = fsock
+
+        fsockerr = open('error.log', 'w')
+        sys.stderr = fsockerr
+
+        # create dgram udp socket
+        try:
+            senderSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            senderSocket.bind((ANY, SENDERPORT)) #绑定发送端口到SENDERPORT，即此例的发送端口为1501
+
+            ttl_bin = struct.pack('@i', 1)
+            senderSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl_bin) #设置使用多播发送
+        except socket.error:
+            print 'Failed to create socket'
+            sys.exit()
+
+        strTest = u"发送指令  ..............................".encode(encoding='gbk')
+        #print strTest.decode(encoding='gbk')
+        buf2Send = struct.pack('<i', 1002)
+        msg2Send = bytearray(buf2Send + strTest)
+        #print msg2Send
+        #############################################
+        token = get_token()
+
+        wx.PostEvent(self.mypanel, ItemActivated(data=1009, thread=threading.current_thread()))
+
+        count = 0
+        it = 0
+        fileName = "audio_microphone-results.wav"  #TODO:
+        while True:
+
+            timeBegin = time.time()
+
+            use_cloud(token, fileName)  ##shibie
+            ###########################################
+            ### send results
+            inforResults =json.loads(bufBaiduResults)
+            if('success.' in inforResults['err_msg']):
+                strRecognizedWords = inforResults['result'][0]
+            else:
+                strRecognizedWords = "Failed this time!"
+            #strResults = r"发送指令 %s .........................................."%(strRecognizedWords)
+            strResults = strRecognizedWords.encode(encoding='gbk') + u"..以上是识别结果  ..............................".encode(encoding='gbk')
+            buf2Send = struct.pack('<i', 1002)
+            msg2Send = bytearray(buf2Send + strResults)
+
+            try :
+                #Set the whole string
+                senderSocket.sendto(msg2Send,  (MCAST_ADDR, MCAST_PORT))
+                print strResults, "is sent.....s", 'to',  (MCAST_ADDR, MCAST_PORT)
+            except socket.error, msg:
+                print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+                sys.exit()
+            #print '____________________________________________\n'
+            timeEnd = time.time()
+            strRuntime = " Runtime=%.1fsec"%(timeEnd - timeBegin)
+            wx.PostEvent(self.mypanel,
+                         ItemActivated(data=1011, #random.randint(*self.range),
+                                       thread=threading.current_thread()))
+            wx.PostEvent(self.mypanel,
+                         ItemActivated(data ='Results= '.encode('gbk') + strRecognizedWords +'  Sent to:' + MCAST_ADDR + ':' + str(MCAST_PORT) + strRuntime, #random.randint(*self.range), + MCAST_ADDR+ MCAST_PORT
+                                       thread=threading.current_thread()))
+            count += 1
+            it += 1
+        return
+
+
+#################################################################
 class AudioThread(threading.Thread):
 
     def __init__(self, mypanel, range_):
         self.mypanel = mypanel
         self.range = range_
         threading.Thread.__init__(self)
+        return
 
     def run(self):
 
@@ -171,6 +254,7 @@ class AudioThread(threading.Thread):
 
         wx.PostEvent(self.mypanel, ItemActivated(data=1009, thread=threading.current_thread()))
 
+        ############  monitoring microphone, and record voice
         count = 0
         it = 0
         r = sr.Recognizer()
@@ -192,7 +276,7 @@ class AudioThread(threading.Thread):
             wx.PostEvent(self.mypanel,
                          ItemActivated(data=1010, #random.randint(*self.range),
                                        thread=threading.current_thread()))
-
+            ''''''
             use_cloud(token, fileName)  ##shibie
             ###########################################
             ### send results
@@ -222,6 +306,7 @@ class AudioThread(threading.Thread):
             wx.PostEvent(self.mypanel,
                          ItemActivated(data ='Results= '.encode('gbk') + strRecognizedWords +'  Sent to:' + MCAST_ADDR + ':' + str(MCAST_PORT) + strRuntime, #random.randint(*self.range), + MCAST_ADDR+ MCAST_PORT
                                        thread=threading.current_thread()))
+
             count += 1
             it += 1
 
