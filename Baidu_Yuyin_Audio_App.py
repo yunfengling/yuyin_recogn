@@ -50,11 +50,11 @@ def get_token():
     return json.loads(json_data)['access_token']
 
 def dump_res(buf):
-    print ".....test buf...."
     #print (buf).encode('gbk')
     global bufBaiduResults
     bufBaiduResults = buf
-    print (buf)
+    print " Buf received from baidu: \n" #, (buf)
+    return
 
 
 ## post audio to server
@@ -82,7 +82,6 @@ def use_cloud(token, fileName):
     ]
 
     c = pycurl.Curl()
-    print ".....test 1...."
     c.setopt(pycurl.URL, str(srv_url)) #curl doesn't support unicode
     #c.setopt(c.RETURNTRANSFER, 1)
     c.setopt(c.HTTPHEADER, http_header)   #must be list, not dict
@@ -93,8 +92,7 @@ def use_cloud(token, fileName):
     c.setopt(c.POSTFIELDS, audio_data)
     c.setopt(c.POSTFIELDSIZE, f_len)
     strTest = c.perform() #pycurl.perform() has no return val
-
-    print ".....Done...."
+    print ".... post audio to server is.Done...."
 
 '''
 if __name__ == "__main__":
@@ -110,7 +108,11 @@ def ParseStringFromBaidu(buffer):
     baidu server returns a JSON string.
     To parse the JSON string to get status and results.
     """
-    inforResults = json.loads(bufBaiduResults, encoding='gbk')
+    try:
+        inforResults = json.loads(bufBaiduResults, encoding='gbk')
+    except ValueError:
+        print "ValueError ParseStringFromBaidu"
+
     if('success.' in inforResults['err_msg']):
         strRecognizedWords = inforResults['result'][0]
         isSuccess = True
@@ -220,8 +222,12 @@ class AudioThread(threading.Thread):
     def __init__(self, mypanel, range_):
         self.mypanel = mypanel
         self.range = range_
+        self._nCountAudioRecorded = 0
         threading.Thread.__init__(self)
         return
+
+    def GetAudioRecordCount(self):
+        return self._nCountAudioRecorded
 
     def run(self):
 
@@ -267,7 +273,9 @@ class AudioThread(threading.Thread):
             fileName = "audio_microphone-results.wav"
             with open(fileName, "wb") as f:
                 f.write(audio.get_wav_data())
-            #print  "recording is done", it, "to: ", fileName
+            print  "recording is done", it, "to: ", fileName
+
+            self._nCountAudioRecorded += 1
 
             wx.PostEvent(self.mypanel,
                          ItemActivated(data=1010, #random.randint(*self.range),
@@ -278,14 +286,16 @@ class AudioThread(threading.Thread):
             ### send results
             inforResults =json.loads(bufBaiduResults)
             if('success.' in inforResults['err_msg']):
+
                 strRecognizedWords = inforResults['result'][0]
             else:
                 strRecognizedWords = "Failed this time!"
+            print "Results:", strRecognizedWords
             #strResults = r"发送指令 %s .........................................."%(strRecognizedWords)
             strResults = strRecognizedWords.encode(encoding='gbk') + u"..以上是识别结果  ..............................".encode(encoding='gbk')
             buf2Send = struct.pack('<i', 1002)
             msg2Send = bytearray(buf2Send + strResults)
-
+            print "Ready to send to UDP .."
             '''
             try :
                 #Set the whole string
@@ -393,7 +403,7 @@ class MyPanel(wx.Panel):
         worker_thread2.daemon = True
         #worker_thread1.start()
         worker_thread2.start()
-
+        self._audioRecordThread = worker_thread2
         print "Init is done..."
         return
 
@@ -405,7 +415,7 @@ class MyPanel(wx.Panel):
     def on_item_activated(self, evt):
         old_label = self.mystatic_text.GetLabel()
         if(evt.data == 1010):
-            strEvent = "\n->Event From %s: %s" % (evt.thread, 'audio recorded.')
+            strEvent = "\n->Event From %s: %s %d" % (evt.thread, 'audio recorded.', self._audioRecordThread.GetAudioRecordCount())
         elif(evt.data == 1011):
             strEvent = "\n->Event From %s: %s" % (evt.thread, 'Baidu recognization results')
         elif(evt.data == 1009):
