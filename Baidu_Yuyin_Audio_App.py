@@ -10,15 +10,12 @@ import wx.lib.newevent
 ItemActivated, EVT_ITEM_ACTIVATED = wx.lib.newevent.NewEvent()
 
 
-
 # NOTE: this example requires PyAudio because it uses the Microphone class
-import socket   #for sockets
+
 import sys  #for exit
 import speech_recognition as sr
-
-
-import sys
 import struct
+import sys
 import json
 reload(sys)
 sys.setdefaultencoding('gbk')
@@ -28,11 +25,8 @@ import urllib, urllib2, pycurl
 import base64
 import json
 
-ANY ="127.0.0.1"# 'localhost' #
-SENDERPORT = 18430
-
-MCAST_ADDR ="127.0.0.1" # '224.1.1.1' #'224.168.2.9'   #
-MCAST_PORT = 18432
+################################
+from DataUdpSender import DataUdpSender
 
 bufBaiduResults = ''
 
@@ -121,7 +115,7 @@ def ParseStringFromBaidu(buffer):
         isSuccess = False
     return isSuccess, strRecognizedWords
 
-
+'''
 def SendData2Receiver(senderSocket, strRecognizedWords):
     buf2Send = struct.pack('<i', 1002)
     strResults = r"发送指令%s ......................."%(strRecognizedWords)
@@ -134,7 +128,7 @@ def SendData2Receiver(senderSocket, strRecognizedWords):
         print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
         sys.exit()
     return
-
+'''
 
 ##################################################
 class BaiduOnlineRecognitionThread(threading.Thread):
@@ -236,8 +230,9 @@ class BaiduOnlineRecognitionThread(threading.Thread):
                              ItemActivated(data=1011, #random.randint(*self.range),
                                            thread=threading.current_thread()))
                 wx.PostEvent(self.mypanel,
-                                ItemActivated(data ='Results= '.encode('gbk') + strRecognizedWords +'  Sent to:' + MCAST_ADDR + ':' + str(MCAST_PORT) + strRuntime, #random.randint(*self.range), + MCAST_ADDR+ MCAST_PORT
-                                   thread=threading.current_thread()))
+                                #ItemActivated(data ='Results= '.encode('gbk') + strRecognizedWords +'  Sent to:' + MCAST_ADDR + ':' + str(MCAST_PORT) + strRuntime, #random.randint(*self.range), + MCAST_ADDR+ MCAST_PORT
+                                ItemActivated(data ='Results= '.encode('gbk') + strRecognizedWords  + strRuntime, #random.randint(*self.range), + MCAST_ADDR+ MCAST_PORT
+                                thread=threading.current_thread()))
 
                 self.ClearNewAudioFlag()
 
@@ -380,43 +375,6 @@ class WorkerThread(threading.Thread):
  
 
 
-class CommSocket():
-
-    def __init__(self):
-        self._socketSender = None
-        return
-
-    def InitSocket(self):
-        # create dgram udp socket
-        try:
-            senderSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            #sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            senderSocket.bind((ANY, SENDERPORT)) #绑定发送端口到SENDERPORT，即此例的发送端口为1501
-
-            ttl_bin = struct.pack('@i', 1)
-            senderSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl_bin) #设置使用多播发送
-        except socket.error:
-            print 'Failed to create socket'
-            return 3
-        self._socketSender = senderSocket
-        return 0
-
-    def GetSocket(self):
-        return self._socketSender
-
-    def SendData(self, dataBuf):
-        ret = 0
-        senderSocket = self.GetSocket()
-        try :
-            #Set the whole string
-            senderSocket.sendto(dataBuf,  (MCAST_ADDR, MCAST_PORT))
-            #print strResults, "is sent.....s", 'to',  (MCAST_ADDR, MCAST_PORT)
-        except socket.error, msg:
-            print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
-            ret = -1
-        print 'Sending is done ____________________________________________\n'
-        return ret
-
 
 class MyPanel(wx.Panel):
  
@@ -431,13 +389,13 @@ class MyPanel(wx.Panel):
         self.SetSizerAndFit(self.sizer)
 
         ################
-        commSocket = CommSocket()
-        status = commSocket.InitSocket()
+        commDataUdpSender = DataUdpSender()
+        status = commDataUdpSender.InitSocket()
         if(0 == status):
             self.update_text_ui("\n Now, UDP socket ready to use.") # 已UDP连接完成，通讯正常使用。
         else:
             self.update_text_ui("\n Error: UDP Socket error !!! .")
-        self._commSocket = commSocket
+        self._commSocket = commDataUdpSender
 
         ###################################################################
         #worker_thread1 = WorkerThread(mypanel=self, range_=(1, 100))
