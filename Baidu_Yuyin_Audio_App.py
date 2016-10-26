@@ -275,8 +275,6 @@ class AudioThread(threading.Thread):
         return self._nCountAudioRecorded
 
     def run(self):
-
-
         '''
         # create dgram udp socket
         try:
@@ -386,7 +384,6 @@ class CommSocket():
 
     def __init__(self):
         self._socketSender = None
-        #self.InitSocket()
         return
 
     def InitSocket(self):
@@ -400,19 +397,8 @@ class CommSocket():
             senderSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl_bin) #设置使用多播发送
         except socket.error:
             print 'Failed to create socket'
-            sys.exit(3)
             return 3
-
-        strTest = u"发送指令  ..............................".encode(encoding='gbk')
-        #print strTest.decode(encoding='gbk')
-        buf2Send = struct.pack('<i', 1002)
-        msg2Send = bytearray(buf2Send + strTest)
-        #print msg2Send
-        #############################################
-
         self._socketSender = senderSocket
-
-        #wx.PostEvent(self.mypanel, ItemActivated(data=1009, thread=threading.current_thread()))
         return 0
 
     def GetSocket(self):
@@ -428,7 +414,7 @@ class CommSocket():
         except socket.error, msg:
             print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
             ret = -1
-        #print '____________________________________________\n'
+        print 'Sending is done ____________________________________________\n'
         return ret
 
 
@@ -437,8 +423,6 @@ class MyPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent, -1)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
- 
-
  
         self.mystatic_text = wx.StaticText(self, -1, label="In Main Thread. Waiting for ready......")
         self.sizer.Add(self.mystatic_text)
@@ -450,9 +434,9 @@ class MyPanel(wx.Panel):
         commSocket = CommSocket()
         status = commSocket.InitSocket()
         if(0 == status):
-            self.update_text_ui("\n Now, ready to use.") # 已UDP连接完成，通讯正常使用。
+            self.update_text_ui("\n Now, UDP socket ready to use.") # 已UDP连接完成，通讯正常使用。
         else:
-            self.update_text_ui("\n Error:  Socket error !!! .")
+            self.update_text_ui("\n Error: UDP Socket error !!! .")
         self._commSocket = commSocket
 
         ###################################################################
@@ -470,6 +454,9 @@ class MyPanel(wx.Panel):
         self._baiduRecognThread = baiduThread
         print "Init is done..."
         return
+
+    def GetCommObject(self):
+        return self._commSocket
 
     def update_text_ui(self, strMsg):
         old_label = self.mystatic_text.GetLabel()
@@ -493,11 +480,15 @@ class MyPanel(wx.Panel):
             # send data to receiver.
             strResults = self._baiduRecognThread.GetResultsString()
             if(strResults):
-                #strResults = r"发送指令 %s .........................................."%(strRecognizedWords)
                 strResults = strResults.encode(encoding='gbk') + u"..以上是识别结果  ..............................".encode(encoding='gbk')
                 buf2Send = struct.pack('<i', 1002)
                 msg2Send = bytearray(buf2Send + strResults)
                 print "Ready to send in GUI...... "
+                status = self.GetCommObject().SendData(msg2Send)
+                if(status):
+                    strEvent += "\n Error in UDP data sending... "
+                else:
+                    strEvent += "\n -----> UDP data is sent... "
 
         elif(evt.data == 1009):
             strEvent = "\n->Event From %s: %s" % (evt.thread, 'Ready to use!')
