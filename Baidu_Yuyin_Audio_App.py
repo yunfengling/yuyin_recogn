@@ -145,6 +145,7 @@ class BaiduOnlineRecognitionThread(threading.Thread):
         threading.Thread.__init__(self)
         self._token = get_token()  #获得token
         self._isNewAudioRecorded = False
+        self._strBaiduResults = ''
         return
 
     def ClearNewAudioFlag(self):
@@ -157,6 +158,13 @@ class BaiduOnlineRecognitionThread(threading.Thread):
 
     def GetToken(self):
         return self._token
+
+    def GetResultsString(self):
+        return self._strBaiduResults
+
+    def SetResultsString(self, strResults):
+        self._strBaiduResults = strResults
+        return
 
     def run(self):
         '''
@@ -208,13 +216,28 @@ class BaiduOnlineRecognitionThread(threading.Thread):
                 inforResults =json.loads(bufBaiduResults)
                 if('success.' in inforResults['err_msg']):
                     strRecognizedWords = inforResults['result'][0]
+                    strResults = strRecognizedWords
                 else:
                     strRecognizedWords = "Failed this time!"
+                    strResults = ''
+                self.SetResultsString(strResults)
+                '''
                 #strResults = r"发送指令 %s .........................................."%(strRecognizedWords)
                 strResults = strRecognizedWords.encode(encoding='gbk') + u"..以上是识别结果  ..............................".encode(encoding='gbk')
                 buf2Send = struct.pack('<i', 1002)
                 msg2Send = bytearray(buf2Send + strResults)
+                '''
                 print "Ready to send:",strRecognizedWords
+
+                timeEnd = time.time()
+                strRuntime = " Runtime=%.1fsec"%(timeEnd - timeBegin)
+
+                wx.PostEvent(self.mypanel,
+                             ItemActivated(data=1011, #random.randint(*self.range),
+                                           thread=threading.current_thread()))
+                wx.PostEvent(self.mypanel,
+                                ItemActivated(data ='Results= '.encode('gbk') + strRecognizedWords +'  Sent to:' + MCAST_ADDR + ':' + str(MCAST_PORT) + strRuntime, #random.randint(*self.range), + MCAST_ADDR+ MCAST_PORT
+                                   thread=threading.current_thread()))
 
                 self.ClearNewAudioFlag()
 
@@ -231,14 +254,8 @@ class BaiduOnlineRecognitionThread(threading.Thread):
             print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
             sys.exit()
         #print '____________________________________________\n'
-        timeEnd = time.time()
-        strRuntime = " Runtime=%.1fsec"%(timeEnd - timeBegin)
-        wx.PostEvent(self.mypanel,
-                     ItemActivated(data=1011, #random.randint(*self.range),
-                                   thread=threading.current_thread()))
-        wx.PostEvent(self.mypanel,
-                     ItemActivated(data ='Results= '.encode('gbk') + strRecognizedWords +'  Sent to:' + MCAST_ADDR + ':' + str(MCAST_PORT) + strRuntime, #random.randint(*self.range), + MCAST_ADDR+ MCAST_PORT
-                                   thread=threading.current_thread()))
+
+
         count += 1
         it += 1
         return
@@ -392,7 +409,7 @@ class CommSocket():
         msg2Send = bytearray(buf2Send + strTest)
         #print msg2Send
         #############################################
-        #token = get_token()
+
         self._socketSender = senderSocket
 
         #wx.PostEvent(self.mypanel, ItemActivated(data=1009, thread=threading.current_thread()))
@@ -401,6 +418,18 @@ class CommSocket():
     def GetSocket(self):
         return self._socketSender
 
+    def SendData(self, dataBuf):
+        ret = 0
+        senderSocket = self.GetSocket()
+        try :
+            #Set the whole string
+            senderSocket.sendto(dataBuf,  (MCAST_ADDR, MCAST_PORT))
+            #print strResults, "is sent.....s", 'to',  (MCAST_ADDR, MCAST_PORT)
+        except socket.error, msg:
+            print 'Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+            ret = -1
+        #print '____________________________________________\n'
+        return ret
 
 
 class MyPanel(wx.Panel):
@@ -444,6 +473,9 @@ class MyPanel(wx.Panel):
 
     def update_text_ui(self, strMsg):
         old_label = self.mystatic_text.GetLabel()
+        nNewLines = old_label.count(r'->')
+        if(nNewLines > 18):
+            old_label = ''
         self.mystatic_text.SetLabel(old_label + strMsg)
         return
 
@@ -452,38 +484,24 @@ class MyPanel(wx.Panel):
         if(evt.data == 1010):
             strEvent = "\n->Event From %s: %s %d" % (evt.thread, 'audio recorded.', self._audioRecordThread.GetAudioRecordCount())
 
-            ## start new BaiduOnlineRecognitionThread thread
+            ## trigger baidu recognition
             self._baiduRecognThread.SetNewAudioFlag()
-
-            '''
-            token = get_token()
-
-            count = 0
-            it = 0
-            fileName = "audio_microphone-results.wav"  #TODO:
-            print "run baidu cloud"
-
-            timeBegin = time.time()
-
-            use_cloud(token, fileName)  ##shibie
-            ###########################################
-            ### send results
-            inforResults =json.loads(bufBaiduResults)
-            if('success.' in inforResults['err_msg']):
-                strRecognizedWords = inforResults['result'][0]
-            else:
-                strRecognizedWords = "Failed this time!"
-            #strResults = r"发送指令 %s .........................................."%(strRecognizedWords)
-            strResults = strRecognizedWords.encode(encoding='gbk') + u"..以上是识别结果  ..............................".encode(encoding='gbk')
-            buf2Send = struct.pack('<i', 1002)
-            msg2Send = bytearray(buf2Send + strResults)
-            print "Ready to send:",strRecognizedWords
-            '''
 
         elif(evt.data == 1011):
             strEvent = "\n->Event From %s: %s" % (evt.thread, 'Baidu recognization results')
+
+            # send data to receiver.
+            strResults = self._baiduRecognThread.GetResultsString()
+            if(strResults):
+                #strResults = r"发送指令 %s .........................................."%(strRecognizedWords)
+                strResults = strResults.encode(encoding='gbk') + u"..以上是识别结果  ..............................".encode(encoding='gbk')
+                buf2Send = struct.pack('<i', 1002)
+                msg2Send = bytearray(buf2Send + strResults)
+                print "Ready to send in GUI...... "
+
         elif(evt.data == 1009):
             strEvent = "\n->Event From %s: %s" % (evt.thread, 'Ready to use!')
+
         else:
             strEvent = "\n->Event From %s: %s" % (evt.thread, evt.data)
         self.update_text_ui(strEvent)
