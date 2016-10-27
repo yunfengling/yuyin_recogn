@@ -107,6 +107,7 @@ class BaiduOnlineRecognitionThread(threading.Thread):
         threading.Thread.__init__(self)
         self._token = get_token()  #获得token
         self._isNewAudioRecorded = False
+        self._nAudioIndex = 0
         self._strBaiduResults = ''
         return
 
@@ -114,9 +115,13 @@ class BaiduOnlineRecognitionThread(threading.Thread):
         self._isNewAudioRecorded = False
         return
 
-    def SetNewAudioFlag(self):
+    def SetNewAudioFlag(self, audioIndex):
         self._isNewAudioRecorded = True
+        self._nAudioIndex = audioIndex
         return
+
+    def GetAudioRecordIndex(self):
+        return self._nAudioIndex
 
     def GetToken(self):
         return self._token
@@ -159,7 +164,7 @@ class BaiduOnlineRecognitionThread(threading.Thread):
                 print "Ready to send in baidu thread:",strRecognizedWords
 
                 timeEnd = time.time()
-                strRuntime = " Runtime=%.1fsec"%(timeEnd - timeBegin)
+                strRuntime = "(AudioID=%d), Runtime=%.1fsec"%(self.GetAudioRecordIndex(), timeEnd - timeBegin)
 
                 wx.PostEvent(self.mypanel,
                              ItemActivated(data=1011, #random.randint(*self.range),

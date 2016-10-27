@@ -16,16 +16,15 @@ from Threads import *
 class MyPanel(wx.Panel):
  
     def __init__(self, parent):
-
+        '''
         ########
-
         saveout = sys.stdout
         fsock = open('out.log', 'w')
         sys.stdout = fsock
 
         fsockerr = open('error.log', 'w')
         sys.stderr = fsockerr
-        ''''''
+        '''
         #############
         wx.Panel.__init__(self, parent, -1)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
@@ -67,7 +66,7 @@ class MyPanel(wx.Panel):
     def update_text_ui(self, strMsg):
         old_label = self.mystatic_text.GetLabel()
         nNewLines = old_label.count(r'->')
-        if(nNewLines > 18):
+        if(nNewLines > 28):
             old_label = ''
         self.mystatic_text.SetLabel(old_label + strMsg)
         return
@@ -75,10 +74,11 @@ class MyPanel(wx.Panel):
     def on_item_activated(self, evt):
         old_label = self.mystatic_text.GetLabel()
         if(evt.data == 1010):
-            strEvent = "\n->Event From %s: %s %d" % (evt.thread, 'audio recorded.', self._audioRecordThread.GetAudioRecordCount())
+            nAudioIndex = self._audioRecordThread.GetAudioRecordCount()
+            strEvent = "\n->Event From %s: %s (audio ID=%d)" % (evt.thread, 'Audio recorded. ', nAudioIndex)
 
             ## trigger baidu recognition
-            self._baiduRecognThread.SetNewAudioFlag()
+            self._baiduRecognThread.SetNewAudioFlag(nAudioIndex)
 
         elif(evt.data == 1011):
             strEvent = "\n->Event From %s: %s" % (evt.thread, 'Baidu recognization results')
