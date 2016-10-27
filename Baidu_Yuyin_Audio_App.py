@@ -12,6 +12,8 @@ from DataUdpSender import DataUdpSender
 #from Threads import AudioThread, BaiduOnlineRecognitionThread
 from Threads import *
 
+VERSION_MAJOR = 1
+VERSION_MINOR = 2
 
 class MyPanel(wx.Panel):
  
@@ -107,7 +109,7 @@ class MyPanel(wx.Panel):
 ##################################################################
 if __name__ == "__main__":
     app = wx.App()
-    frame = wx.Frame(None, title="wx.PostEvent Example with Threads",
+    frame = wx.Frame(None, title="VoiceRecognition V%d.%d"%(VERSION_MAJOR, VERSION_MINOR),
                      size=(850, 400))
     MyPanel(frame)
     frame.CenterOnScreen()
