@@ -80,7 +80,9 @@ class MyPanel(wx.Panel):
             strEvent = "\n->Event From %s: %s (audio ID=%d)" % (evt.thread, 'Audio recorded. ', nAudioIndex)
 
             ## trigger baidu recognition
-            self._baiduRecognThread.SetNewAudioFlag(nAudioIndex)
+            status = self._baiduRecognThread.SetNewAudioFlag(nAudioIndex)
+            if(status):
+                strEvent += "   !! Thread is busy. Please try it later..."
 
         elif(evt.data == 1011):
             strEvent = "\n->Event From %s: %s" % (evt.thread, 'Baidu recognization results')

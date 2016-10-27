@@ -101,6 +101,9 @@ def ParseStringFromBaidu(buffer):
 ##################################################
 class BaiduOnlineRecognitionThread(threading.Thread):
 
+    _STATUS_RECOGN_IDLE = 0
+    _STATUS_RECOGN_PROCESSING = 1
+
     def __init__(self, mypanel, range_):
         self.mypanel = mypanel
         self.range = range_
@@ -109,16 +112,22 @@ class BaiduOnlineRecognitionThread(threading.Thread):
         self._isNewAudioRecorded = False
         self._nAudioIndex = 0
         self._strBaiduResults = ''
+        self._statusRecogn = self._STATUS_RECOGN_IDLE
         return
 
     def ClearNewAudioFlag(self):
         self._isNewAudioRecorded = False
+        self._statusRecogn = self._STATUS_RECOGN_IDLE
         return
 
     def SetNewAudioFlag(self, audioIndex):
-        self._isNewAudioRecorded = True
-        self._nAudioIndex = audioIndex
-        return
+        ret = 0
+        if(self._statusRecogn == self._STATUS_RECOGN_IDLE):
+            self._isNewAudioRecorded = True
+            self._nAudioIndex = audioIndex
+        else:
+            ret = self._statusRecogn
+        return ret
 
     def GetAudioRecordIndex(self):
         return self._nAudioIndex
@@ -144,6 +153,7 @@ class BaiduOnlineRecognitionThread(threading.Thread):
 
         while True:
             if self._isNewAudioRecorded:
+                self._statusRecogn = self._STATUS_RECOGN_PROCESSING
                 print "new audio available to test..."
                 timeBegin = time.time()
 
