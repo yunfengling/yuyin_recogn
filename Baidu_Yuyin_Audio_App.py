@@ -18,7 +18,7 @@ VERSION_MINOR = 2
 class MyPanel(wx.Panel):
  
     def __init__(self, parent):
-        '''
+        ''''''
         ########
         saveout = sys.stdout
         fsock = open('out.log', 'w')
@@ -26,7 +26,7 @@ class MyPanel(wx.Panel):
 
         fsockerr = open('error.log', 'w')
         sys.stderr = fsockerr
-        '''
+
         #############
         wx.Panel.__init__(self, parent, -1)
         self.sizer = wx.BoxSizer(wx.VERTICAL)
@@ -49,9 +49,10 @@ class MyPanel(wx.Panel):
         ###################################################################
         #worker_thread1 = WorkerThread(mypanel=self, range_=(1, 100))
         #worker_thread1.daemon = True
+        #worker_thread1.start()
+
         worker_thread2 = AudioThread(mypanel=self, range_=(1000, 2000))
         worker_thread2.daemon = True
-        #worker_thread1.start()
         worker_thread2.start()
         self._audioRecordThread = worker_thread2
 

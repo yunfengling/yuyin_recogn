@@ -45,7 +45,6 @@ def dump_res(buf):
     print " Buf received from baidu: \n" #, (buf)
     return
 
-
 ## post audio to server
 def use_cloud(token, fileName):
     #pathWavefile = r"D:/SpeechRecog/BaiduTest/2016-09-25_22_57_34.wav"
